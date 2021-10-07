@@ -1,1 +1,3 @@
 /node_modules
+/dcmFile/upload/*
+/dcmFile/local/*

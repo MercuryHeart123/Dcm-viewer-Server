@@ -1,8 +1,8 @@
 const express = require("express")
 const app = express()
 const fs = require('fs');
-const LocalFolder = 'C:/Users/VAHAH/Desktop/inuse/dcmFile/local/';
-const UploadFolder = 'C:/Users/VAHAH/Desktop/inuse/dcmFile/upload/';
+const LocalFolder = './dcmFile/local/';
+const UploadFolder = './dcmFile/upload/';
 var localFilelist = [];
 var uploadFilelist = [];
 const cors = require("cors");
@@ -34,7 +34,7 @@ async function start(){
       len = '0'+len
     }
 
-    fs.writeFile(`C:/Users/VAHAH/Desktop/inuse/dcmFile/upload/${len}.dcm`, base64Image, {encoding: 'base64'}, function(err) {
+    fs.writeFile(`./dcmFile/upload/${len}.dcm`, base64Image, {encoding: 'base64'}, function(err) {
       console.log(`${len}.dcm created `);
     });
     uploadFilelist.push(`${len}.dcm`)
@@ -71,7 +71,7 @@ async function start(){
     var id = req.params.id;
     var folder = req.params.folder;
     try{
-        const file = `C:/Users/VAHAH/Desktop/inuse/dcmFile/${folder}/${id}`;
+        const file = `./dcmFile/${folder}/${id}`;
         res.download(file);
         console.log("load", file);
     }
