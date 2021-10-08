@@ -1,3 +1,6 @@
+const readdir = require("fs/promises").readdir
+const join  = require("path").join;
+const basename = require("path").basename
 const express = require("express")
 const app = express()
 const fs = require('fs');
@@ -7,6 +10,31 @@ var localFilelist = [];
 var uploadFilelist = [];
 const cors = require("cors");
 const corsOptions ={ origin:'*', credentials:true, }
+
+
+async function* tokenise (path = ".")
+{ yield { dir: path }
+  for (const dirent of await readdir(path, { withFileTypes: true }))
+    if (dirent.isDirectory())
+      yield* tokenise(join(path, dirent.name))
+    else
+      yield { file: join(path, dirent.name) }
+  yield { endDir: path }
+}
+
+async function parse (iter = empty())
+{ const r = [{}]
+  for await (const e of iter)
+    if (e.dir)
+      r.unshift({})
+    else if (e.file)
+      r[0][basename(e.file)] = true
+    else if (e.endDir)
+      r[1][basename(e.endDir)] = r.shift()
+  return r[0]
+}
+
+async function* empty () {}
 
 fs.readdir(LocalFolder, (err, files) => {
   files.forEach(file => {
@@ -19,7 +47,28 @@ fs.readdir(UploadFolder, (err, files) => {
     uploadFilelist.push(file);
   });
 })
-  
+
+async function make_dir(FilePath){
+  return await new Promise((resolve, reject) => {
+    fs.readdir(FilePath, async (err,files) => {
+      var arr = [];
+      files.forEach(async(file) => {
+        if (!file.includes(".dcm")){
+          var container = { dir_name: file,
+                        sub_dir: {}}
+          container.sub_dir = await make_dir(FilePath+ file + '/')
+          console.log(container);
+          resolve(container)
+        }
+        else{
+          arr.push(file);
+        }
+      });
+
+      resolve(arr)
+    })
+  })
+}
 async function start(){
   app.use(cors(corsOptions))
   app.use(express.json({limit: '50mb'}));
@@ -42,15 +91,13 @@ async function start(){
 
 
   app.get('/list/local', (req,res) => {
-    localFilelist = [];
-    fs.readdir(LocalFolder, (err, files) => {
-      files.forEach(file => {
-        localFilelist.push(file);
-      });
-      var dcmlist = {"file": localFilelist}
-      res.send(dcmlist);
-    });
-    
+
+    const createTree = (path = ".") =>
+        parse(tokenise(path))
+
+    createTree("./dcmFile/local/")
+      .then(r => res.send(JSON.stringify(r, null, 2)))
+      .catch(console.error)
     console.log("Local list");
   })
 
@@ -63,7 +110,6 @@ async function start(){
       var dcmlist = {"file": uploadFilelist}
       res.send(dcmlist);
     });
-    
     console.log("Upload listed");
   })
 
