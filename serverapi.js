@@ -102,14 +102,12 @@ async function start(){
   })
 
   app.get('/list/upload', (req,res) => {
-    uploadFilelist = [];
-    fs.readdir(UploadFolder, (err, files) => {
-      files.forEach(file => {
-        uploadFilelist.push(file);
-      });
-      var dcmlist = {"file": uploadFilelist}
-      res.send(dcmlist);
-    });
+    const createTree = (path = ".") =>
+        parse(tokenise(path))
+
+    createTree("./dcmFile/upload/")
+      .then(r => res.send(JSON.stringify(r, null, 2)))
+      .catch(console.error)
     console.log("Upload listed");
   })
 
