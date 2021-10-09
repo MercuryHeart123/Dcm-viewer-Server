@@ -4,8 +4,8 @@ const basename = require("path").basename
 const express = require("express")
 const app = express()
 const fs = require('fs');
-const LocalFolder = './dcmFile/local/';
-const UploadFolder = './dcmFile/upload/';
+const LocalFolder = './dcm/local/';
+const UploadFolder = './dcm/upload/';
 var localFilelist = [];
 var uploadFilelist = [];
 const cors = require("cors");
@@ -76,14 +76,13 @@ async function start(){
 
   app.post('/upload', (req,res) => {
     var len = String(uploadFilelist.length);
-    // process.chdir('C:/Users/VAHAH/Desktop/inuse/dcmFile/');
     let base64 = req.body.file;
     let base64Image = base64.split(';base64,').pop();
     while(len.length<=6){
       len = '0'+len
     }
 
-    fs.writeFile(`./dcmFile/upload/${len}.dcm`, base64Image, {encoding: 'base64'}, function(err) {
+    fs.writeFile(`./dcm/upload/${len}.dcm`, base64Image, {encoding: 'base64'}, function(err) {
       console.log(`${len}.dcm created `);
     });
     uploadFilelist.push(`${len}.dcm`)
@@ -95,7 +94,7 @@ async function start(){
     const createTree = (path = ".") =>
         parse(tokenise(path))
 
-    createTree("./dcmFile/local/")
+    createTree("./dcm/local/")
       .then(r => res.send(JSON.stringify(r, null, 2)))
       .catch(console.error)
     console.log("Local list");
@@ -105,17 +104,18 @@ async function start(){
     const createTree = (path = ".") =>
         parse(tokenise(path))
 
-    createTree("./dcmFile/upload/")
+    createTree("./dcm/upload/")
       .then(r => res.send(JSON.stringify(r, null, 2)))
       .catch(console.error)
     console.log("Upload listed");
   })
 
-  app.get('/dcm/:folder/:id', function(req, res){
-    var id = req.params.id;
-    var folder = req.params.folder;
+  app.get('/dcm/*', function(req, res){
+
+    var id = req.originalUrl;
+    id = decodeURI(id)
     try{
-        const file = `./dcmFile/${folder}/${id}`;
+        const file = `.${id}`;
         res.download(file);
         console.log("load", file);
     }
