@@ -42,27 +42,6 @@ fs.readdir(UploadFolder, (err, files) => {
   });
 })
 
-async function make_dir(FilePath){
-  return await new Promise((resolve, reject) => {
-    fs.readdir(FilePath, async (err,files) => {
-      var arr = [];
-      files.forEach(async(file) => {
-        if (!file.includes(".dcm")){
-          var container = { dir_name: file,
-                        sub_dir: {}}
-          container.sub_dir = await make_dir(FilePath+ file + '/')
-          console.log(container);
-          resolve(container)
-        }
-        else{
-          arr.push(file);
-        }
-      });
-
-      resolve(arr)
-    })
-  })
-}
 async function start(){
   app.use(cors(corsOptions))
   app.use(express.json({limit: '50mb'}));
@@ -114,7 +93,7 @@ async function start(){
         console.log("load", file);
     }
     catch(e){
-      console.log(e);
+      res.status(500).send(e)
     }
 
   });
