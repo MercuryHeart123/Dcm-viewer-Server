@@ -4,9 +4,7 @@ const basename = require("path").basename
 const express = require("express")
 const app = express()
 const fs = require('fs');
-const LocalFolder = './dcm/local/';
 const UploadFolder = './dcm/upload/';
-var localFilelist = [];
 var uploadFilelist = [];
 const cors = require("cors");
 const corsOptions ={ origin:'*', credentials:true, }
@@ -36,11 +34,7 @@ async function parse (iter = empty())
 
 async function* empty () {}
 
-fs.readdir(LocalFolder, (err, files) => {
-  files.forEach(file => {
-    localFilelist.push(file);
-  });
-})
+
 
 fs.readdir(UploadFolder, (err, files) => {
   files.forEach(file => {
