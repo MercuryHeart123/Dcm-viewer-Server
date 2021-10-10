@@ -26,7 +26,6 @@ async function* tokenise (path = ".")
 
 async function parse (iter = empty(), index, islocal=true)
 { const r = [{}]
-  var a=0;
   var fileIndex = 0;
   var end =false;
   for await (const e of iter)
@@ -46,7 +45,7 @@ async function parse (iter = empty(), index, islocal=true)
 
     else if (e.endDir){
       if(end == true){
-        a++
+
         end = false;
       }
       r[1][basename(e.endDir)] = r.shift()
@@ -131,6 +130,20 @@ async function start(){
     id = decodeURI(id)
     try{
         const file = `.${id}`;
+        res.download(file);
+        console.log("load", file);
+    }
+    catch(e){
+      res.status(500).send(e)
+    }
+
+  });
+
+  app.get('/csv/*', function(req, res){
+
+    console.log('pass');
+    try{
+        const file = `./dcm/csv/train_study_level.csv`;
         res.download(file);
         console.log("load", file);
     }
