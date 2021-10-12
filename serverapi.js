@@ -6,11 +6,12 @@ const app = express()
 const fs = require('fs');
 const LocalFolder = './dcm/local/';
 const UploadFolder = './dcm/upload/';
-
+const CsvFolder = './dcm/csv';
 const cors = require("cors");
 const corsOptions ={ origin:'*', credentials:true, }
-var lenLocal ;
+var lenLocal;
 var lenUpload;
+var lenCsv;
 
 async function* tokenise (path = ".")
 { yield { dir: path }
@@ -52,9 +53,7 @@ async function parse (iter = empty(), index, islocal=true)
       if(Object.keys(r[0]).length == index && islocal){
         return r[0]
       }
-      
-
-      }
+    }
 
   return r[0]
 }
@@ -67,6 +66,10 @@ fs.readdir(LocalFolder, (err, files) => {
 
 fs.readdir(UploadFolder, (err, files) => {
   lenUpload = files.length;
+})
+
+fs.readdir(CsvFolder, (err, files) => {
+  lenCsv = files.length;
 })
 
 async function start(){
@@ -92,7 +95,7 @@ async function start(){
 
 
   app.get('/list/local/:index', (req,res) => {
-    var index = req.params.index;
+    var index = req.params.index || lenLocal;
     const createTree = (path = ".", index) =>
         parse(tokenise(path), index)
 
@@ -102,11 +105,25 @@ async function start(){
                   res.send(JSON.stringify(r, null, 2))
                 })
       .catch(console.error)
-    console.log("Local list");
+    console.log("Local listed");
+  })
+
+  app.get('/list/csv', (req,res) => {
+    var index = req.params.index || lenCsv;
+    const createTree = (path = ".", index) =>
+        parse(tokenise(path), index)
+
+    createTree("./dcm/csv/", index)
+    .then(r => {
+                  r[`MaxIndex`] = lenCsv;
+                  res.send(JSON.stringify(r, null, 2))
+                })
+      .catch(console.error)
+    console.log("Csv listed");
   })
 
   app.get('/list/upload/:index', (req,res) => {
-    var index = req.params.index;
+    var index = req.params.index || lenUpload;
     const createTree = (path = ".", index) =>
         parse(tokenise(path), index, false)
 
@@ -131,7 +148,7 @@ async function start(){
     try{
         const file = `.${id}`;
         res.download(file);
-        console.log("load", file);
+        console.log("loaded", file);
     }
     catch(e){
       res.status(500).send(e)
@@ -140,10 +157,11 @@ async function start(){
   });
 
   app.get('/csv/*', function(req, res){
-
-    console.log('pass');
     try{
-        const file = `./dcm/csv/train_study_level.csv`;
+        var id = req.originalUrl;
+        id = id.replace('csv','dcm')
+
+        const file = `.${id}`;
         res.download(file);
         console.log("load", file);
     }
