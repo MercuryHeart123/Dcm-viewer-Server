@@ -4,7 +4,7 @@ const basename = require("path").basename
 const express = require("express")
 const app = express()
 const fs = require('fs');
-const LocalFolder = './dcm/local/';
+const LocalFolder = './dcm/local/test';
 const UploadFolder = './dcm/upload/';
 const CsvFolder = './dcm/csv';
 const cors = require("cors");
@@ -15,50 +15,89 @@ var lenCsv;
 
 async function* tokenise (path = ".")
 { yield { dir: path }
-  
   for (const dirent of await readdir(path, { withFileTypes: true }))
     if (dirent.isDirectory())
       yield* tokenise(join(path, dirent.name))
     else
       yield { file: join(path, dirent.name) }
-
   yield { endDir: path }
 }
 
 async function parse (iter = empty(), index, islocal=true)
 { const r = [{}]
-  var fileIndex = 0;
-  var end =false;
+  // var fileIndex = 0;
+  // var end =false;
   for await (const e of iter)
     if (e.dir){
       r.unshift({})
 
     }
     else if (e.file){
-      if (fileIndex >= index && islocal == false){ // skip index that unwanted 
-        continue;
-      }
-      end = true;
-      fileIndex++;
+      // if (fileIndex >= index && islocal == false){ // skip index that unwanted 
+      //   continue;
+      // }
+      // end = true;
+      // fileIndex++;
       r[0][basename(e.file)] = true
       
     }
 
     else if (e.endDir){
-      if(end == true){
+      // if(end == true){
 
-        end = false;
-      }
+      //   end = false;
+      // }
       r[1][basename(e.endDir)] = r.shift()
-      if(Object.keys(r[0]).length == index && islocal){
-        return r[0]
-      }
+      // if(Object.keys(r[0]).length == index && islocal){
+      //   return r[0]
+      // }
     }
 
   return r[0]
 }
 
 async function* empty () {}
+
+make_dir = async(pathname, index) => {
+
+
+  var key = await new Promise((resolve, reject) => {
+      fs.readdir(pathname, (err, files) => {
+          resolve(files)
+      })
+  })
+  var len = key.length
+  var tmp_arr = [];
+  if(index !== null){
+    len = index
+  }
+  for(let i=0 ;i<len;i++){
+      if (!key[i].includes('.dcm') && !key[i].includes('.csv')){
+          var obj = {};
+          obj['title'] = key[i];
+
+          if(obj[`children`] == null){
+              obj[`children`] = [];
+          }
+          var children = await make_dir(pathname + '/' + key[i], null)
+          obj[`children`] = children
+          tmp_arr.push(obj)
+          if(i==key.length-1){
+              return tmp_arr
+          }
+      }
+      else{
+          var obj = {};
+          pathname = pathname.replace('.', '')
+          obj[`title`] = key[i];
+          obj[`path`] = pathname + '/' + key[i];
+
+          tmp_arr.push(obj);
+      }
+  }
+  return tmp_arr
+} 
+
 
 fs.readdir(LocalFolder, (err, files) => {
   lenLocal = files.length;
@@ -94,19 +133,19 @@ async function start(){
   })
 
 
-  app.get('/list/local/:index', (req,res) => {
-    var index = req.params.index || lenLocal;
-    const createTree = (path = ".", index) =>
-        parse(tokenise(path), index)
+  // app.get('/list/local/:index', (req,res) => {
+  //   var index = req.params.index || lenLocal;
+  //   const createTree = (path = ".", index) =>
+  //       parse(tokenise(path), index)
 
-    createTree("./dcm/local/", index)
-    .then(r => {
-                  r[`MaxIndex`] = lenLocal;
-                  res.send(JSON.stringify(r, null, 2))
-                })
-      .catch(console.error)
-    console.log("Local listed");
-  })
+  //   createTree("./dcm/local/", index)
+  //   .then(r => {
+  //                 r[`MaxIndex`] = lenLocal;
+  //                 res.send(JSON.stringify(r, null, 2))
+  //               })
+  //     .catch(console.error)
+  //   console.log("Local listed");
+  // })
 
   app.get('/list/csv', (req,res) => {
     var index = req.params.index || lenCsv;
@@ -171,6 +210,15 @@ async function start(){
 
   });
 
+  app.get('/list/local/test/:index', (req, res) => {
+    var index = req.params.index
+    make_dir('./dcm/local/test', index).then((e)=> {
+      var obj = {};
+      obj[`files`] = e;
+      obj[`MaxIndex`] = lenLocal
+      res.send(obj)
+    })
+  })
   app.listen(8080, () => {
     console.log('server start at port 8080')
   })
