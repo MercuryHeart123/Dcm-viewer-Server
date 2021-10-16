@@ -4,74 +4,46 @@ const basename = require("path").basename
 const express = require("express")
 const app = express()
 const fs = require('fs');
-const LocalFolder = './dcm/local/test';
+const TestLocalFolder = './dcm/local/test';
+const TrainLocalFolder = './dcm/local/train';
 const UploadFolder = './dcm/upload/';
-const CsvFolder = './dcm/csv';
+const CsvFolder = './csv';
 const cors = require("cors");
 const corsOptions ={ origin:'*', credentials:true, }
-var lenLocal;
+var lenTestLocal;
 var lenUpload;
 var lenCsv;
+var lenTrainLocal;
 
-async function* tokenise (path = ".")
-{ yield { dir: path }
-  for (const dirent of await readdir(path, { withFileTypes: true }))
-    if (dirent.isDirectory())
-      yield* tokenise(join(path, dirent.name))
-    else
-      yield { file: join(path, dirent.name) }
-  yield { endDir: path }
-}
+var MainObj = {
+                test: {
+                  files: [],
+                  startIndex: 0,
+                },
+                train: {
+                  files: [],
+                  startIndex: 0,
+                }
+              };
 
-async function parse (iter = empty(), index, islocal=true)
-{ const r = [{}]
-  // var fileIndex = 0;
-  // var end =false;
-  for await (const e of iter)
-    if (e.dir){
-      r.unshift({})
-
-    }
-    else if (e.file){
-      // if (fileIndex >= index && islocal == false){ // skip index that unwanted 
-      //   continue;
-      // }
-      // end = true;
-      // fileIndex++;
-      r[0][basename(e.file)] = true
-      
-    }
-
-    else if (e.endDir){
-      // if(end == true){
-
-      //   end = false;
-      // }
-      r[1][basename(e.endDir)] = r.shift()
-      // if(Object.keys(r[0]).length == index && islocal){
-      //   return r[0]
-      // }
-    }
-
-  return r[0]
-}
-
-async function* empty () {}
-
-make_dir = async(pathname, index) => {
-
+make_dir = async(pathname, startIndex, endIndex) => {
 
   var key = await new Promise((resolve, reject) => {
       fs.readdir(pathname, (err, files) => {
           resolve(files)
       })
+      
   })
   var len = key.length
+  var begin = 0;
   var tmp_arr = [];
-  if(index !== null){
-    len = index
+  if(endIndex !== null){
+    len = endIndex
   }
-  for(let i=0 ;i<len;i++){
+  if(startIndex !== null){
+    begin = startIndex;
+  }
+  for(let i=begin ;i<len;i++){
       if (!key[i].includes('.dcm') && !key[i].includes('.csv')){
           var obj = {};
           obj['title'] = key[i];
@@ -79,7 +51,7 @@ make_dir = async(pathname, index) => {
           if(obj[`children`] == null){
               obj[`children`] = [];
           }
-          var children = await make_dir(pathname + '/' + key[i], null)
+          var children = await make_dir(pathname + '/' + key[i], null, null)
           obj[`children`] = children
           tmp_arr.push(obj)
           if(i==key.length-1){
@@ -98,9 +70,12 @@ make_dir = async(pathname, index) => {
   return tmp_arr
 } 
 
+fs.readdir(TestLocalFolder, (err, files) => {
+  lenTestLocal = files.length;
+})
 
-fs.readdir(LocalFolder, (err, files) => {
-  lenLocal = files.length;
+fs.readdir(TrainLocalFolder, (err, files) => {
+  lenTrainLocal = files.length;
 })
 
 fs.readdir(UploadFolder, (err, files) => {
@@ -133,45 +108,30 @@ async function start(){
   })
 
 
-  // app.get('/list/local/:index', (req,res) => {
-  //   var index = req.params.index || lenLocal;
-  //   const createTree = (path = ".", index) =>
-  //       parse(tokenise(path), index)
-
-  //   createTree("./dcm/local/", index)
-  //   .then(r => {
-  //                 r[`MaxIndex`] = lenLocal;
-  //                 res.send(JSON.stringify(r, null, 2))
-  //               })
-  //     .catch(console.error)
-  //   console.log("Local listed");
-  // })
 
   app.get('/list/csv', (req,res) => {
     var index = req.params.index || lenCsv;
-    const createTree = (path = ".", index) =>
-        parse(tokenise(path), index)
-
-    createTree("./dcm/csv/", index)
-    .then(r => {
-                  r[`MaxIndex`] = lenCsv;
-                  res.send(JSON.stringify(r, null, 2))
-                })
-      .catch(console.error)
+    make_dir(`./csv`, 0, index).then((e)=> {
+      var obj = {};
+      obj[`files`] = e;
+      obj[`MaxIndex`] = lenCsv
+      res.send(obj)
+    })
     console.log("Csv listed");
   })
 
   app.get('/list/upload/:index', (req,res) => {
     var index = req.params.index || lenUpload;
-    const createTree = (path = ".", index) =>
-        parse(tokenise(path), index, false)
-
-    createTree("./dcm/upload/", index)
-      .then(r => {
-                    r[`MaxIndex`] = lenUpload;
-                    res.send(JSON.stringify(r, null, 2))
-                  })
-      .catch(console.error)
+    if(index > lenUpload){
+      index = lenUpload
+    }
+    make_dir(`./dcm/upload`, index).then((e)=> {
+      var obj = {};
+      obj[`files`] = e;
+      obj[`MaxIndex`] = lenUpload
+     
+      res.send(obj)
+    })
     console.log("Upload listed");
   })
 
@@ -182,7 +142,7 @@ async function start(){
       id = id.replace('/dcm','/dcm/local')  // url that pass this path sometime miss local directory 
                                             // this is filter before load img 
     }
-    console.log(id);
+
     id = decodeURI(id)
     try{
         const file = `.${id}`;
@@ -196,9 +156,9 @@ async function start(){
   });
 
   app.get('/csv/*', function(req, res){
+
     try{
         var id = req.originalUrl;
-        id = id.replace('csv','dcm')
 
         const file = `.${id}`;
         res.download(file);
@@ -210,14 +170,24 @@ async function start(){
 
   });
 
-  app.get('/list/local/test/:index', (req, res) => {
-    var index = req.params.index
-    make_dir('./dcm/local/test', index).then((e)=> {
-      var obj = {};
-      obj[`files`] = e;
-      obj[`MaxIndex`] = lenLocal
-      res.send(obj)
-    })
+  app.get('/list/local/:dir/:index', async(req, res) => {
+    var endIndex = req.params.index;
+    var dir = req.params.dir;
+    console.log(MainObj[`${dir}`][`startIndex`], endIndex);
+    var e = await make_dir(`./dcm/local/${dir}`, MainObj[`${dir}`][`startIndex`], endIndex)
+    e.forEach(element => {
+      MainObj[`${dir}`][`files`].push(element);
+    });
+    MainObj[`${dir}`][`startIndex`] = endIndex;
+    if(dir === 'test'){
+      MainObj[`${dir}`][`MaxIndex`] = lenTestLocal;
+    }
+    else if (dir === 'train'){
+      MainObj[`${dir}`][`MaxIndex`] = lenTrainLocal;
+    }
+    console.log(MainObj);
+    res.send(MainObj[`${dir}`])
+    
   })
   app.listen(8080, () => {
     console.log('server start at port 8080')
