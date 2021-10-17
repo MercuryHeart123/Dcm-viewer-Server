@@ -6,13 +6,14 @@ const TrainLocalFolder = './dcm/local/train';
 const UploadFolder = './dcm/upload/';
 const CsvFolder = './csv';
 const cors = require("cors");
+const { parse } = require("path");
 const corsOptions ={ origin:'*', credentials:true, }
 var lenTestLocal;
 var lenUpload;
 var lenCsv;
 var lenTrainLocal;
 
-make_dir = async(pathname, startIndex, endIndex) => {
+make_dir = async(pathname, StartIndex, EndIndex) => { //make nested object directory
 
   var key = await new Promise((resolve, reject) => {
       fs.readdir(pathname, (err, files) => {
@@ -23,13 +24,15 @@ make_dir = async(pathname, startIndex, endIndex) => {
   var len = key.length
   var begin = 0;
   var tmp_arr = [];
-  if(endIndex !== null){
-    len = endIndex
+  if(EndIndex !== null){
+    len = EndIndex
   }
-  if(startIndex !== null){
-    begin = startIndex;
+  if(StartIndex !== null){
+    begin = StartIndex;
   }
+
   for(let i=begin ;i<len;i++){
+
       if (!key[i].includes('.dcm') && !key[i].includes('.csv')){
           var obj = {};
           obj['title'] = key[i];
@@ -37,9 +40,9 @@ make_dir = async(pathname, startIndex, endIndex) => {
           if(obj[`children`] == null){
               obj[`children`] = [];
           }
-          var children = await make_dir(pathname + '/' + key[i], null, null)
-          obj[`children`] = children
-          tmp_arr.push(obj)
+          var children = await make_dir(pathname + '/' + key[i], null, null) //call recursive in deeper path
+          obj[`children`] = children // set result of recursive to children
+          tmp_arr.push(obj) // push those children to tmp_arr (prepare to return)
           if(i==key.length-1){
               return tmp_arr
           }
@@ -95,9 +98,14 @@ async function start(){
 
 
 
-  app.get('/list/csv', (req,res) => {
-    var index = req.params.index || lenCsv;
-    make_dir(`./csv`, 0, index).then((e)=> {
+  app.get('/list/csv/:StartIndex/:EndIndex', (req,res) => {
+    var StartIndex = parseInt(req.params.StartIndex) ;
+    var EndIndex =parseInt(req.params.EndIndex) ;
+    
+    if(EndIndex > lenCsv){
+      EndIndex = lenCsv;
+    }
+    make_dir(`./csv`, StartIndex, EndIndex).then((e)=> {
       var obj = {};
       obj[`files`] = e;
       obj[`MaxIndex`] = lenCsv
@@ -107,12 +115,14 @@ async function start(){
     console.log("Csv listed");
   })
 
-  app.get('/list/upload/:index', (req,res) => {
-    var index = req.params.index || lenUpload;
-    if(index > lenUpload){
-      index = lenUpload
+  app.get('/list/upload/:StartIndex/:EndIndex', (req,res) => {
+    var StartIndex = parseInt(req.params.StartIndex) ;
+    var EndIndex =parseInt(req.params.EndIndex) ;
+    if(EndIndex > lenUpload){
+      EndIndex = lenUpload;
     }
-    make_dir(`./dcm/upload`, 0, index).then((e)=> {
+
+    make_dir(`./dcm/upload`, StartIndex, EndIndex).then((e)=> {
       var obj = {};
       obj[`files`] = e;
       obj[`MaxIndex`] = lenUpload
@@ -156,10 +166,12 @@ async function start(){
 
   });
 
-  app.get('/list/local/:dir/:index', (req, res) => {
-    var EndIndex = req.params.index;
+  app.get('/list/local/:dir/:StartIndex/:EndIndex', (req, res) => {
     var dir = req.params.dir;
-    make_dir(`./dcm/local/${dir}`, 0, EndIndex).then((e)=> {
+    var StartIndex = parseInt(req.params.StartIndex) ;
+    var EndIndex =parseInt(req.params.EndIndex) ;
+
+    make_dir(`./dcm/local/${dir}`, StartIndex, EndIndex).then((e)=> {
       var obj = {};
       obj[`files`] = e;
       if(dir === 'test'){
