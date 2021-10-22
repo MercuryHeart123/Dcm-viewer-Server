@@ -6,8 +6,7 @@ const TrainLocalFolder = './dcm/local/train';
 const UploadFolder = './dcm/upload/';
 const CsvFolder = './csv';
 const cors = require("cors");
-const { parse } = require("path");
-const corsOptions ={ origin:'*', credentials:true, }
+const corsOptions ={origin:'*'}
 var lenTestLocal;
 var lenUpload;
 var lenCsv;
@@ -36,23 +35,16 @@ make_dir = async(pathname, StartIndex, EndIndex) => { //make nested object direc
       if (!key[i].includes('.dcm') && !key[i].includes('.csv')){
           var obj = {};
           obj['title'] = key[i];
-
-          if(obj[`children`] == null){
-              obj[`children`] = [];
-          }
           var children = await make_dir(pathname + '/' + key[i], null, null) //call recursive in deeper path
           obj[`children`] = children // set result of recursive to children
           tmp_arr.push(obj) // push those children to tmp_arr (prepare to return)
-          if(i==key.length-1){
-              return tmp_arr
-          }
+          
       }
       else{
           var obj = {};
           pathname = pathname.replace('.', '')
           obj[`title`] = key[i];
           obj[`path`] = pathname + '/' + key[i];
-
           tmp_arr.push(obj);
       }
   }
@@ -135,10 +127,6 @@ async function start(){
   app.get('/dcm/*', function(req, res){
 
     var id = req.originalUrl;
-    if (!id.includes('local') && !id.includes('upload')){
-      id = id.replace('/dcm','/dcm/local')  // url that pass this path sometime miss local directory 
-                                            // this is filter before load img 
-    }
     id = decodeURI(id)
     try{
         const file = `.${id}`;
@@ -170,7 +158,7 @@ async function start(){
     var dir = req.params.dir;
     var StartIndex = parseInt(req.params.StartIndex) ;
     var EndIndex =parseInt(req.params.EndIndex) ;
-
+    console.log(StartIndex, EndIndex);
     make_dir(`./dcm/local/${dir}`, StartIndex, EndIndex).then((e)=> {
       var obj = {};
       obj[`files`] = e;
@@ -179,7 +167,7 @@ async function start(){
       }
       else if (dir === 'train'){
         obj[`MaxIndex`] = lenTrainLocal
-      }
+      } 
       res.send(obj)
     })
   })
