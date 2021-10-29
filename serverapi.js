@@ -157,7 +157,7 @@ async function start(){
   app.get('/list/local/:dir/:StartIndex/:EndIndex', (req, res) => {
     var dir = req.params.dir;
     var StartIndex = parseInt(req.params.StartIndex) ;
-    var EndIndex =parseInt(req.params.EndIndex) ;
+    var EndIndex = parseInt(req.params.EndIndex) ;
     console.log(StartIndex, EndIndex);
     make_dir(`./dcm/local/${dir}`, StartIndex, EndIndex).then((e)=> {
       var obj = {};
